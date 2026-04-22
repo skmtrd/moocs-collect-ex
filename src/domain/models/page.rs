@@ -31,6 +31,32 @@ impl LecturePage {
     }
 }
 
+/// Extracted page body content.
+#[derive(Debug, Clone)]
+pub struct LecturePageContent {
+    pub page_key: PageKey,
+    pub body_html: String,
+    pub body_text: String,
+}
+
+impl LecturePageContent {
+    pub fn new(
+        page_key: PageKey,
+        body_html: impl Into<String>,
+        body_text: impl Into<String>,
+    ) -> Self {
+        Self {
+            page_key,
+            body_html: body_html.into(),
+            body_text: body_text.into(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.body_html.trim().is_empty() && self.body_text.trim().is_empty()
+    }
+}
+
 /// Lecture page builder
 #[derive(Debug, Clone)]
 pub struct LecturePageBuilder {
@@ -115,5 +141,25 @@ mod tests {
         // Test with empty name - should fallback to slug
         let page_empty_name = LecturePage::new(page_key, "", 1);
         assert_eq!(page_empty_name.display_name(), "page-slug");
+    }
+
+    #[test]
+    fn test_lecture_page_content() {
+        let lecture_key = LectureKey::new(
+            CourseKey::new(
+                Year::new(2023).unwrap(),
+                CourseSlug::new("course-slug").unwrap(),
+            ),
+            LectureSlug::new("lecture-slug").unwrap(),
+        );
+        let page_key = PageKey::new(lecture_key, PageSlug::new("page-slug").unwrap());
+
+        let content = LecturePageContent::new(page_key.clone(), "<p>Hello</p>", "Hello");
+
+        assert_eq!(content.page_key, page_key);
+        assert!(!content.is_empty());
+
+        let empty = LecturePageContent::new(page_key, "", "");
+        assert!(empty.is_empty());
     }
 }

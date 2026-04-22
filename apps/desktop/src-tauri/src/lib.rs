@@ -41,7 +41,11 @@ pub fn run() {
             command::get_archive_years,
             command::search_slides,
             command::get_recorded_courses,
+            command::get_recorded_lectures,
+            command::get_recorded_pages,
+            command::get_recorded_page,
             command::purge_index,
+            command::read_local_file_bytes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

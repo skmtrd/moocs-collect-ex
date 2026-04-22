@@ -1,5 +1,5 @@
 use crate::domain::{
-    models::{LectureKey, LecturePage, PageKey},
+    models::{LectureKey, LecturePage, LecturePageContent, PageKey},
     repository::{AuthenticationRepository, PageRepository},
     service::PageService,
 };
@@ -46,5 +46,15 @@ impl PageService for PageServiceImpl {
             .ok_or_else(|| {
                 crate::error::CollectError::not_found(format!("Page not found: {page_key}"))
             })
+    }
+
+    async fn get_page_content(&self, page_key: &PageKey) -> Result<LecturePageContent> {
+        if !self.auth_repository.is_logged_in_moocs().await? {
+            return Err(crate::error::CollectError::authentication(
+                "Not logged into MOOCs system. Please authenticate first.",
+            ));
+        }
+
+        self.page_repository.fetch_page_content(page_key).await
     }
 }

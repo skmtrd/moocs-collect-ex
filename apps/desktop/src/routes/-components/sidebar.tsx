@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
   DownloadIcon,
   FolderOpenIcon,
   PanelLeftCloseIcon,
@@ -56,6 +57,12 @@ export function Sidebar() {
           <Link to="/search">
             <SearchIcon />
             <span>検索</span>
+          </Link>
+        </SidebarButton>
+        <SidebarButton asChild>
+          <Link to="/viewer">
+            <BookOpenIcon />
+            <span>ビューア</span>
           </Link>
         </SidebarButton>
       </div>

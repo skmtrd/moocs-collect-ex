@@ -4,6 +4,7 @@ import type { Course } from "@/features/course/schemas/course";
 import type { Lecture } from "@/features/course/schemas/lecture";
 import type { Page } from "@/features/course/schemas/page";
 import { recordedCoursesAtom } from "@/features/search/atoms/search";
+import { refreshViewerAtom } from "@/features/viewer/atoms/viewer";
 import { downloadSlides } from "../services/download-slides";
 
 export type DownloadItem = Page & {
@@ -52,6 +53,7 @@ export const queueAtom = atom(
           return next;
         });
         set(recordedCoursesAtom);
+        set(refreshViewerAtom);
       } catch (error) {
         const reason =
           error instanceof Error

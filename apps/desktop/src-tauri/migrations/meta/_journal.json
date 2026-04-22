@@ -8,6 +8,20 @@
       "when": 1758043275560,
       "tag": "0000_superb_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776831000000,
+      "tag": "0001_tame_local_viewer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776837000000,
+      "tag": "0002_tidy_viewer_groups",
+      "breakpoints": true
     }
   ]
 }

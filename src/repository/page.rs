@@ -1,6 +1,6 @@
 use crate::cache::Cache;
 use crate::domain::{
-    models::{LectureKey, LecturePage, MoocsUrl, PageKey, UrlBuilder},
+    models::{LectureKey, LecturePage, LecturePageContent, MoocsUrl, PageKey, UrlBuilder},
     repository::PageRepository,
 };
 use crate::error::Result;
@@ -15,6 +15,7 @@ pub struct PageRepositoryImpl {
     client: Arc<Client>,
     url_builder: UrlBuilder,
     page_cache: Cache<LectureKey, Vec<LecturePage>>,
+    page_content_cache: Cache<PageKey, LecturePageContent>,
 }
 
 impl PageRepositoryImpl {
@@ -23,6 +24,7 @@ impl PageRepositoryImpl {
             client,
             url_builder: UrlBuilder::default(),
             page_cache: Cache::new(Duration::from_secs(600)), // 10 minutes
+            page_content_cache: Cache::new(Duration::from_secs(600)), // 10 minutes
         }
     }
 
@@ -48,6 +50,23 @@ impl PageRepositoryImpl {
         })?;
 
         Ok((final_url, html))
+    }
+
+    async fn fetch_page_html(&self, page_key: &PageKey) -> Result<String> {
+        let url = self.url_builder.page_url(
+            page_key.lecture_key.course_key.year.clone(),
+            page_key.lecture_key.course_key.slug.clone(),
+            page_key.lecture_key.slug.clone(),
+            page_key.slug.clone(),
+        );
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            crate::error::CollectError::network("Failed to fetch page content", Some(e))
+        })?;
+
+        response.text().await.map_err(|e| {
+            crate::error::CollectError::network("Failed to read response body", Some(e))
+        })
     }
 
     fn scrape_pages(
@@ -127,6 +146,34 @@ impl PageRepositoryImpl {
             )),
         }
     }
+
+    fn scrape_page_content(&self, html: &str, page_key: &PageKey) -> Result<LecturePageContent> {
+        let document = Html::parse_document(html);
+        let content_selector = parse_selector("div.markdown-block.mathjax-process")?;
+
+        let mut body_html = Vec::new();
+        let mut body_text = Vec::new();
+
+        for block in document.select(&content_selector) {
+            body_html.push(block.html());
+
+            let text = self.normalize_block_text(&block.text().collect::<Vec<_>>().join(" "));
+
+            if !text.is_empty() {
+                body_text.push(text);
+            }
+        }
+
+        Ok(LecturePageContent::new(
+            page_key.clone(),
+            body_html.join("\n"),
+            body_text.join("\n\n"),
+        ))
+    }
+
+    fn normalize_block_text(&self, text: &str) -> String {
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
 }
 
 #[async_trait]
@@ -150,5 +197,89 @@ impl PageRepository for PageRepositoryImpl {
     async fn fetch_page(&self, page_key: &PageKey) -> Result<Option<LecturePage>> {
         let pages = self.fetch_pages(&page_key.lecture_key).await?;
         Ok(pages.into_iter().find(|page| page.key == *page_key))
+    }
+
+    async fn fetch_page_content(&self, page_key: &PageKey) -> Result<LecturePageContent> {
+        if let Some(cached_content) = self.page_content_cache.get(page_key) {
+            return Ok(cached_content);
+        }
+
+        let html = self.fetch_page_html(page_key).await?;
+        let page_content = self.scrape_page_content(&html, page_key)?;
+
+        self.page_content_cache
+            .insert(page_key.clone(), page_content.clone());
+
+        Ok(page_content)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::models::{CourseKey, CourseSlug, LectureKey, LectureSlug, PageSlug, Year};
+
+    fn build_page_key() -> PageKey {
+        let lecture_key = LectureKey::new(
+            CourseKey::new(Year::new(2026).unwrap(), CourseSlug::new("cot201").unwrap()),
+            LectureSlug::new("cs3-01").unwrap(),
+        );
+
+        PageKey::new(lecture_key, PageSlug::new("02").unwrap())
+    }
+
+    #[test]
+    fn scrape_page_content_extracts_markdown_block_html_and_text() {
+        let repository = PageRepositoryImpl::new(Arc::new(Client::new()));
+        let page_key = build_page_key();
+        let html = r#"
+            <section class="content container-fluid">
+                <div class="pad-block">
+                    <div class="embed-responsive require-3pc embed-responsive-16by9-gslide">
+                        <iframe src="https://docs.google.com/presentation/d/e/test/pubembed?start=false"></iframe>
+                    </div>
+                </div>
+                <div class="pad-block">
+                    <div class="markdown-block mathjax-process">
+                        <p>Society 5.0 - 科学技術政策 - 内閣府</p>
+                        <a href="https://www8.cao.go.jp/cstp/society5_0/">https://www8.cao.go.jp/cstp/society5_0/</a>
+                    </div>
+                </div>
+            </section>
+        "#;
+
+        let content = repository.scrape_page_content(html, &page_key).unwrap();
+
+        assert_eq!(content.page_key, page_key);
+        assert!(content.body_html.contains("markdown-block mathjax-process"));
+        assert!(content.body_html.contains("Society 5.0"));
+        assert!(content
+            .body_text
+            .contains("Society 5.0 - 科学技術政策 - 内閣府"));
+        assert!(content
+            .body_text
+            .contains("https://www8.cao.go.jp/cstp/society5_0/"));
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn scrape_page_content_returns_empty_when_markdown_block_is_missing() {
+        let repository = PageRepositoryImpl::new(Arc::new(Client::new()));
+        let page_key = build_page_key();
+        let html = r#"
+            <section class="content container-fluid">
+                <div class="pad-block">
+                    <div class="embed-responsive require-3pc embed-responsive-16by9-gslide">
+                        <iframe src="https://docs.google.com/presentation/d/e/test/pubembed?start=false"></iframe>
+                    </div>
+                </div>
+            </section>
+        "#;
+
+        let content = repository.scrape_page_content(html, &page_key).unwrap();
+
+        assert!(content.body_html.is_empty());
+        assert!(content.body_text.is_empty());
+        assert!(content.is_empty());
     }
 }

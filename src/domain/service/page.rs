@@ -1,4 +1,4 @@
-use crate::domain::models::{LectureKey, LecturePage, PageKey};
+use crate::domain::models::{LectureKey, LecturePage, LecturePageContent, PageKey};
 use crate::error::Result;
 use async_trait::async_trait;
 
@@ -10,4 +10,7 @@ pub trait PageService: Send + Sync {
 
     /// Get a specific page by its key
     async fn get_page(&self, page_key: &PageKey) -> Result<LecturePage>;
+
+    /// Get extracted page body content by key
+    async fn get_page_content(&self, page_key: &PageKey) -> Result<LecturePageContent>;
 }

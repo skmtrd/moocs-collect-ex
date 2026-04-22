@@ -14,6 +14,7 @@ import { Route as rootRoute } from './routes/__root'
 import { Route as LoginImport } from './routes/login'
 import { Route as AuthenticatedImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedViewerImport } from './routes/_authenticated/viewer'
 import { Route as AuthenticatedSettingsImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSearchImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedDownloadImport } from './routes/_authenticated/download'
@@ -34,6 +35,12 @@ const AuthenticatedRoute = AuthenticatedImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+
+const AuthenticatedViewerRoute = AuthenticatedViewerImport.update({
+  id: '/viewer',
+  path: '/viewer',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 
@@ -94,6 +101,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsImport
       parentRoute: typeof AuthenticatedImport
     }
+    '/_authenticated/viewer': {
+      id: '/_authenticated/viewer'
+      path: '/viewer'
+      fullPath: '/viewer'
+      preLoaderRoute: typeof AuthenticatedViewerImport
+      parentRoute: typeof AuthenticatedImport
+    }
     '/_authenticated/': {
       id: '/_authenticated/'
       path: '/'
@@ -110,6 +124,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDownloadRoute: typeof AuthenticatedDownloadRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedViewerRoute: typeof AuthenticatedViewerRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
@@ -117,6 +132,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDownloadRoute: AuthenticatedDownloadRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedViewerRoute: AuthenticatedViewerRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
@@ -130,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/download': typeof AuthenticatedDownloadRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/viewer': typeof AuthenticatedViewerRoute
   '/': typeof AuthenticatedIndexRoute
 }
 
@@ -138,6 +155,7 @@ export interface FileRoutesByTo {
   '/download': typeof AuthenticatedDownloadRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/viewer': typeof AuthenticatedViewerRoute
   '/': typeof AuthenticatedIndexRoute
 }
 
@@ -148,14 +166,22 @@ export interface FileRoutesById {
   '/_authenticated/download': typeof AuthenticatedDownloadRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/viewer': typeof AuthenticatedViewerRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '' | '/login' | '/download' | '/search' | '/settings' | '/'
+  fullPaths:
+    | ''
+    | '/login'
+    | '/download'
+    | '/search'
+    | '/settings'
+    | '/viewer'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/download' | '/search' | '/settings' | '/'
+  to: '/login' | '/download' | '/search' | '/settings' | '/viewer' | '/'
   id:
     | '__root__'
     | '/_authenticated'
@@ -163,6 +189,7 @@ export interface FileRouteTypes {
     | '/_authenticated/download'
     | '/_authenticated/search'
     | '/_authenticated/settings'
+    | '/_authenticated/viewer'
     | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
@@ -197,6 +224,7 @@ export const routeTree = rootRoute
         "/_authenticated/download",
         "/_authenticated/search",
         "/_authenticated/settings",
+        "/_authenticated/viewer",
         "/_authenticated/"
       ]
     },
@@ -213,6 +241,10 @@ export const routeTree = rootRoute
     },
     "/_authenticated/settings": {
       "filePath": "_authenticated/settings.tsx",
+      "parent": "/_authenticated"
+    },
+    "/_authenticated/viewer": {
+      "filePath": "_authenticated/viewer.tsx",
       "parent": "/_authenticated"
     },
     "/_authenticated/": {

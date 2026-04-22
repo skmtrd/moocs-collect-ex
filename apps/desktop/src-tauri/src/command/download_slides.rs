@@ -4,8 +4,8 @@ use crate::state::{CollectState, DbState, SearchState};
 use collect::{
     error::CollectError,
     pdf::{self, PdfConversionError, PreProcessor},
-    Course, CourseKey, CourseSlug, Lecture, LectureKey, LecturePage, LectureSlug, PageKey,
-    PageSlug, Slide, SlideContent, Year,
+    Course, CourseKey, CourseSlug, Lecture, LectureKey, LecturePage, LecturePageContent,
+    LectureSlug, PageKey, PageSlug, Slide, SlideContent, Year,
 };
 use sqlx::SqlitePool;
 use tauri::{Manager, State};
@@ -85,6 +85,34 @@ pub async fn download_slides(
     let course_info = collect
         .get_course_info(&lecture_info.key.course_key)
         .await?;
+    let (lecture_group_name, lecture_group_index) =
+        match collect.get_lecture_groups(&lecture_info.key.course_key).await {
+            Ok(groups) => groups
+                .into_iter()
+                .find(|group| {
+                    group
+                        .lectures
+                        .iter()
+                        .any(|candidate| candidate.key == lecture_info.key)
+                })
+                .map(|group| (group.display_name().to_string(), group.index as i64))
+                .unwrap_or_else(|| (String::new(), 0)),
+            Err(err) => {
+                log::warn!(
+                    "Failed to fetch lecture groups for {}: {}",
+                    lecture_info.key.course_key,
+                    err
+                );
+                (String::new(), 0)
+            }
+        };
+    let page_content = match collect.get_page_content(&page_key).await {
+        Ok(content) => Some(content),
+        Err(err) => {
+            log::warn!("Failed to fetch page content for {}: {}", page_key, err);
+            None
+        }
+    };
 
     let lecture_dir = get_lecture_dir_from_info(
         &download_dir,
@@ -125,7 +153,10 @@ pub async fn download_slides(
         &db_pool,
         &course_info,
         &lecture_info,
+        &lecture_group_name,
+        lecture_group_index,
         &page_info,
+        page_content.as_ref(),
         &slides,
         &saved_paths,
     )
@@ -227,7 +258,10 @@ async fn persist_downloaded_slides(
     pool: &SqlitePool,
     course: &Course,
     lecture: &Lecture,
+    lecture_group_name: &str,
+    lecture_group_index: i64,
     page: &LecturePage,
+    page_content: Option<&LecturePageContent>,
     slides: &[Slide],
     saved_paths: &[PathBuf],
 ) -> Result<(), sqlx::Error> {
@@ -262,13 +296,15 @@ async fn persist_downloaded_slides(
     let lecture_index = lecture.index as i64;
 
     sqlx::query(
-        "INSERT INTO lectures (course_id, slug, name, sort_index) VALUES (?, ?, ?, ?) \
-         ON CONFLICT(course_id, slug) DO UPDATE SET name = excluded.name, sort_index = excluded.sort_index, updated_at = unixepoch()",
+        "INSERT INTO lectures (course_id, slug, name, sort_index, group_name, group_index) VALUES (?, ?, ?, ?, ?, ?) \
+         ON CONFLICT(course_id, slug) DO UPDATE SET name = excluded.name, sort_index = excluded.sort_index, group_name = excluded.group_name, group_index = excluded.group_index, updated_at = unixepoch()",
     )
     .bind(course_id)
     .bind(lecture_slug)
     .bind(lecture_name)
     .bind(lecture_index)
+    .bind(lecture_group_name)
+    .bind(lecture_group_index)
     .execute(&mut *tx)
     .await?;
 
@@ -292,15 +328,26 @@ async fn persist_downloaded_slides(
     .bind(page_slug)
     .bind(page_name)
     .bind(page_index)
-    .bind(&page_key)
-    .execute(&mut *tx)
-    .await?;
+        .bind(&page_key)
+        .execute(&mut *tx)
+        .await?;
 
     let page_id: i64 = sqlx::query_scalar("SELECT id FROM pages WHERE lecture_id = ? AND slug = ?")
         .bind(lecture_id)
         .bind(page_slug)
         .fetch_one(&mut *tx)
         .await?;
+
+    if let Some(page_content) = page_content {
+        sqlx::query(
+            "UPDATE pages SET content_html = ?, content_text = ?, updated_at = unixepoch() WHERE id = ?",
+        )
+        .bind(&page_content.body_html)
+        .bind(&page_content.body_text)
+        .bind(page_id)
+        .execute(&mut *tx)
+        .await?;
+    }
 
     for (slide, saved_path) in slides.iter().zip(saved_paths) {
         let slide_index = slide.index as i64;

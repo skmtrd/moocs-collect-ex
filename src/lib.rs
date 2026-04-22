@@ -97,6 +97,10 @@ impl Collect {
         self.page_service.get_pages(lecture_key).await
     }
 
+    pub async fn get_page_content(&self, page_key: &PageKey) -> Result<LecturePageContent> {
+        self.page_service.get_page_content(page_key).await
+    }
+
     // Slide operations
     pub async fn get_slides(&self, page_key: &PageKey) -> Result<Vec<Slide>> {
         self.slide_service.get_slides(page_key).await
