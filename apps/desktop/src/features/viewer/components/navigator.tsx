@@ -2,6 +2,8 @@ import { useAtom, useAtomValue } from "jotai";
 import { Fragment, useEffect, useMemo } from "react";
 import { css, cx } from "styled-system/css";
 import { Box, Divider } from "styled-system/jsx";
+import { Portal } from "@ark-ui/react/portal";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   recordedCoursesAtom,
   recordedLecturesAtom,
@@ -86,16 +88,22 @@ function GroupLabel({
   first?: boolean;
 }) {
   return (
-    <Box
-      px="3"
-      pt={first ? "1" : "3"}
-      pb="1"
-      fontSize="xs"
-      color="fg.muted"
-      fontWeight="medium"
-    >
-      {label}
-    </Box>
+    <OverflowTooltip label={label} placement="right-start">
+      <Box
+        px="3"
+        pt={first ? "1" : "3"}
+        pb="1"
+        fontSize="xs"
+        color="fg.muted"
+        fontWeight="medium"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        whiteSpace="nowrap"
+        cursor="default"
+      >
+        {label}
+      </Box>
+    </OverflowTooltip>
   );
 }
 
@@ -119,54 +127,98 @@ function SelectableItem({
 }: {
   selected?: boolean;
   onClick: () => void;
-  title: React.ReactNode;
+  title: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-selected={selected ? "" : undefined}
-      className={cx(
-        css({
-          appearance: "none",
-          border: "none",
-          bg: "transparent",
-          h: "8",
-          w: "full",
-          px: "3",
-          display: "flex",
-          alignItems: "center",
-          textAlign: "left",
-          rounded: "l2",
-          color: "fg.default",
-          cursor: "pointer",
-          outline: "none",
-          transitionDuration: "normal",
-          transitionProperty: "background, border-color, color, box-shadow",
-          transitionTimingFunction: "default",
-          userSelect: "none",
-          verticalAlign: "middle",
-          whiteSpace: "nowrap",
-          _hover: {
-            bg: "bg.subtle",
-          },
-          "&[data-selected]": {
-            bg: "gray.a3",
-          },
-        }),
-      )}
-    >
-      <Box
-        flex="1"
-        overflow="hidden"
-        textOverflow="ellipsis"
-        fontSize="sm"
-        fontWeight={selected ? "medium" : "normal"}
-        color="fg.default"
+    <OverflowTooltip label={title} placement="right-start">
+      <button
+        type="button"
+        onClick={onClick}
+        data-selected={selected ? "" : undefined}
+        className={cx(
+          css({
+            appearance: "none",
+            border: "none",
+            bg: "transparent",
+            h: "8",
+            w: "full",
+            px: "3",
+            display: "flex",
+            alignItems: "center",
+            textAlign: "left",
+            rounded: "l2",
+            color: "fg.default",
+            cursor: "pointer",
+            outline: "none",
+            transitionDuration: "normal",
+            transitionProperty: "background, border-color, color, box-shadow",
+            transitionTimingFunction: "default",
+            userSelect: "none",
+            verticalAlign: "middle",
+            whiteSpace: "nowrap",
+            _hover: {
+              bg: "bg.subtle",
+            },
+            "&[data-selected]": {
+              bg: "gray.a3",
+            },
+          }),
+        )}
       >
-        {title}
-      </Box>
-    </button>
+        <Box
+          flex="1"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          fontSize="sm"
+          fontWeight={selected ? "medium" : "normal"}
+          color="fg.default"
+        >
+          {title}
+        </Box>
+      </button>
+    </OverflowTooltip>
+  );
+}
+
+function OverflowTooltip({
+  label,
+  placement,
+  children,
+}: {
+  label: string;
+  placement: "right-start" | "bottom-start";
+  children: React.ReactElement;
+}) {
+  return (
+    <Tooltip.Root
+      openDelay={180}
+      closeDelay={60}
+      positioning={{ placement }}
+    >
+      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      <Portal>
+        <Tooltip.Positioner zIndex="tooltip">
+          <Tooltip.Content
+            maxW="22rem"
+            px="3"
+            py="2"
+            rounded="l2"
+            bg="bg.default"
+            color="fg.default"
+            border="1px solid"
+            borderColor="border.default"
+            boxShadow="lg"
+            fontSize="sm"
+            lineHeight="1.5"
+            whiteSpace="normal"
+            wordBreak="break-word"
+            pointerEvents="none"
+          >
+            {label}
+          </Tooltip.Content>
+        </Tooltip.Positioner>
+      </Portal>
+    </Tooltip.Root>
   );
 }
 
