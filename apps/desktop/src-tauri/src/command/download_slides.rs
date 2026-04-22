@@ -85,27 +85,29 @@ pub async fn download_slides(
     let course_info = collect
         .get_course_info(&lecture_info.key.course_key)
         .await?;
-    let (lecture_group_name, lecture_group_index) =
-        match collect.get_lecture_groups(&lecture_info.key.course_key).await {
-            Ok(groups) => groups
-                .into_iter()
-                .find(|group| {
-                    group
-                        .lectures
-                        .iter()
-                        .any(|candidate| candidate.key == lecture_info.key)
-                })
-                .map(|group| (group.display_name().to_string(), group.index as i64))
-                .unwrap_or_else(|| (String::new(), 0)),
-            Err(err) => {
-                log::warn!(
-                    "Failed to fetch lecture groups for {}: {}",
-                    lecture_info.key.course_key,
-                    err
-                );
-                (String::new(), 0)
-            }
-        };
+    let (lecture_group_name, lecture_group_index) = match collect
+        .get_lecture_groups(&lecture_info.key.course_key)
+        .await
+    {
+        Ok(groups) => groups
+            .into_iter()
+            .find(|group| {
+                group
+                    .lectures
+                    .iter()
+                    .any(|candidate| candidate.key == lecture_info.key)
+            })
+            .map(|group| (group.display_name().to_string(), group.index as i64))
+            .unwrap_or_else(|| (String::new(), 0)),
+        Err(err) => {
+            log::warn!(
+                "Failed to fetch lecture groups for {}: {}",
+                lecture_info.key.course_key,
+                err
+            );
+            (String::new(), 0)
+        }
+    };
     let page_content = match collect.get_page_content(&page_key).await {
         Ok(content) => Some(content),
         Err(err) => {

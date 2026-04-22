@@ -8,6 +8,7 @@ use crate::utils::{extract_element_attribute, parse_selector};
 use async_trait::async_trait;
 use reqwest::Client;
 use scraper::Html;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -149,19 +150,22 @@ impl PageRepositoryImpl {
 
     fn scrape_page_content(&self, html: &str, page_key: &PageKey) -> Result<LecturePageContent> {
         let document = Html::parse_document(html);
-        let content_selector = parse_selector("div.markdown-block.mathjax-process")?;
-
         let mut body_html = Vec::new();
         let mut body_text = Vec::new();
+        let mut seen_html = HashSet::new();
 
-        for block in document.select(&content_selector) {
-            body_html.push(block.html());
-
-            let text = self.normalize_block_text(&block.text().collect::<Vec<_>>().join(" "));
-
-            if !text.is_empty() {
-                body_text.push(text);
-            }
+        for selector in [
+            "div.markdown-block.mathjax-process",
+            "div.problem-description.mathjax-process",
+            "div.problem-contents.mathjax-process",
+        ] {
+            self.collect_content_blocks(
+                &document,
+                selector,
+                &mut seen_html,
+                &mut body_html,
+                &mut body_text,
+            )?;
         }
 
         Ok(LecturePageContent::new(
@@ -169,6 +173,37 @@ impl PageRepositoryImpl {
             body_html.join("\n"),
             body_text.join("\n\n"),
         ))
+    }
+
+    fn collect_content_blocks(
+        &self,
+        document: &Html,
+        selector: &str,
+        seen_html: &mut HashSet<String>,
+        body_html: &mut Vec<String>,
+        body_text: &mut Vec<String>,
+    ) -> Result<()> {
+        let content_selector = parse_selector(selector)?;
+
+        for block in document.select(&content_selector) {
+            let inner_html = block.inner_html();
+            let html = block.html();
+            let text = self.normalize_block_text(&block.text().collect::<Vec<_>>().join(" "));
+
+            if inner_html.trim().is_empty() && text.is_empty() {
+                continue;
+            }
+
+            if seen_html.insert(html.clone()) {
+                body_html.push(html);
+
+                if !text.is_empty() {
+                    body_text.push(text);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn normalize_block_text(&self, text: &str) -> String {
@@ -281,5 +316,48 @@ mod tests {
         assert!(content.body_html.is_empty());
         assert!(content.body_text.is_empty());
         assert!(content.is_empty());
+    }
+
+    #[test]
+    fn scrape_page_content_extracts_problem_page_body() {
+        let repository = PageRepositoryImpl::new(Arc::new(Client::new()));
+        let page_key = build_page_key();
+        let html = r#"
+            <section class="content container-fluid">
+                <h2 class="clearfix">課題</h2>
+                <div class="pad-block">
+                    <div class="panel pad-form problem-container">
+                        <div class="problem-coverpage" style="display: none">
+                            <div class="problem-description mathjax-process">
+                                <p>現在この問題は非公開です。</p>
+                            </div>
+                        </div>
+                        <div class="problem-contentpage" style="display: none">
+                            <div class="problem-contents mathjax-process">
+                                <p>レポートを提出してください。</p>
+                                <ul>
+                                    <li>締切: 金曜日</li>
+                                </ul>
+                            </div>
+                            <p>* 回答は自動的に記録されます。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        "#;
+
+        let content = repository.scrape_page_content(html, &page_key).unwrap();
+
+        assert_eq!(content.page_key, page_key);
+        assert!(content
+            .body_html
+            .contains(r#"problem-description mathjax-process"#));
+        assert!(content
+            .body_html
+            .contains(r#"problem-contents mathjax-process"#));
+        assert!(content.body_text.contains("現在この問題は非公開です。"));
+        assert!(content.body_text.contains("レポートを提出してください。"));
+        assert!(!content.body_text.contains("回答は自動的に記録されます"));
+        assert!(!content.is_empty());
     }
 }

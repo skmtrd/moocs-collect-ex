@@ -35,6 +35,11 @@ export function PageViewer() {
     );
   }
 
+  const pageHasBodyContent = hasBodyContent(
+    pageDetail.contentHtml,
+    pageDetail.contentText,
+  );
+
   const openFirstPdf = async () => {
     const firstSlide = pageDetail.slides[0];
     if (!firstSlide) {
@@ -92,11 +97,11 @@ export function PageViewer() {
                 />
               ))}
             </VStack>
-          ) : (
+          ) : !pageHasBodyContent ? (
             <EmptyCard description="このページには保存済み PDF がありません。" />
-          )}
+          ) : null}
 
-          {hasBodyContent(pageDetail.contentHtml, pageDetail.contentText) && (
+          {pageHasBodyContent && (
             <VStack
               alignItems="stretch"
               gap="4"
