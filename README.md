@@ -1,41 +1,47 @@
-﻿# Moocs Collect
+﻿# Moocs Collect Ex
 
-INIAD Moocs から授業スライドを効率的にダウンロードするためのアプリケーション
+`moocs-collect-ex` は、[yu7400ki/moocs-collect](https://github.com/yu7400ki/moocs-collect) をベースにした非公式 fork です。  
+元プロジェクトの使いやすい収集基盤を活かしつつ、ローカル教材ビューアや本文ページ対応など、個人利用向けの拡張を加えています。
 
-🏡 [ホームページ・ダウンロード](https://yu7400ki.github.io/moocs-collect)
+[![License](https://img.shields.io/github/license/skmtrd/moocs-collect-ex.svg)](LICENSE)
 
-[![GitHub release](https://img.shields.io/github/release/yu7400ki/moocs-collect.svg)](https://github.com/yu7400ki/moocs-collect/releases)
-[![License](https://img.shields.io/github/license/yu7400ki/moocs-collect.svg)](LICENSE)
+## この fork について
+
+- 本リポジトリは [yu7400ki/moocs-collect](https://github.com/yu7400ki/moocs-collect) への敬意を前提にした派生プロジェクトです
+- upstream の設計や実装を土台として、ローカル閲覧まわりの機能追加と検証を行っています
+- INIAD MOOCs や大学とは無関係の非公式プロジェクトです
+- 利用にあたっては、所属機関の利用規約・授業資料の取り扱いルールに従ってください
+
+元プロジェクトの公式配布物や最新情報を確認したい場合は、upstream の README と releases を参照してください。  
+upstream: [yu7400ki/moocs-collect](https://github.com/yu7400ki/moocs-collect)
 
 ## 機能
 
-- 一括ダウンロード: 効率的なスライド取得
-- クロスプラットフォーム: Windows、macOS、Linux対応
-- PDF出力: スライドをPDFとして保存
-- 全文検索: ダウンロードしたスライドの高速検索（デスクトップアプリ）
+- 一括ダウンロード: 授業ページからスライドをまとめて取得
+- PDF出力: Google Slides 埋め込み教材を PDF として保存
+- 本文保存: スライド下の本文や、スライドのない課題ページ本文も保存
+- ローカル教材ビューア: 保存済みの PDF と本文を MOOCs に近い形で閲覧
+- 全文検索: 保存済み教材の検索（デスクトップアプリ）
+- クロスプラットフォーム: Windows、macOS、Linux 対応
 
 ## クイックスタート
 
 ### デスクトップアプリ
 
-#### インストール
+この fork は現状、ソースからの起動を前提にしています。
 
-[ホームページ](https://yu7400ki.github.io/moocs-collect) から最新版をダウンロードしてください。
-
-- Windows: `.msi` または `.exe` ファイル
-- macOS: `.dmg` または `.tar.gz` ファイル
-- Linux: `.AppImage` または `.deb`、`.rpm` ファイル
-
-[GitHubリリースページ](https://github.com/yu7400ki/moocs-collect/releases)からも直接ダウンロード可能です。
+```bash
+git clone https://github.com/skmtrd/moocs-collect-ex.git
+cd moocs-collect-ex
+pnpm install
+cargo build --workspace
+pnpm --filter=desktop tauri dev
+```
 
 ![Desktop App Main](assets/desktop-main.png)
 ![Desktop App Search](assets/desktop-search.png)
 
 ### CLI版
-
-#### インストール
-
-[リリースページ](https://github.com/yu7400ki/moocs-collect/releases)からプラットフォームに合わせたバイナリをダウンロードしてください。
 
 #### 基本的な使い方
 
@@ -59,7 +65,7 @@ PDFファイルを結合するユーティリティです。
 #### インストール
 
 ```bash
-cargo install --git https://github.com/yu7400ki/moocs-collect.git mcmerge
+cargo install --path apps/merge --bin mcmerge
 ```
 
 #### 使い方
@@ -80,6 +86,7 @@ moocs-collect/
 ├── apps/
 │   ├── cli/            # CLI アプリケーション
 │   ├── desktop/        # Tauri デスクトップアプリ
+│   ├── merge/          # PDF 結合ユーティリティ
 │   └── website/        # Webサイト
 └── ...
 ```
@@ -96,8 +103,8 @@ moocs-collect/
 
 ```bash
 # リポジトリクローン
-git clone https://github.com/yu7400ki/moocs-collect.git
-cd moocs-collect
+git clone https://github.com/skmtrd/moocs-collect-ex.git
+cd moocs-collect-ex
 
 # 依存関係インストール
 pnpm install
@@ -144,5 +151,5 @@ pnpm --filter=website build
 ---
 
 <p align="center">
-  Made with ❤️ for INIAD students
+  Built with respect for the upstream project and for personal local study workflows
 </p>
